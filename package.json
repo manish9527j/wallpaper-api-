@@ -1,6 +1,6 @@
 {
   "name": "wallpaper-api",
   "version": "1.0.0",
-  "description": "Wallpaper API for Vercel",
-  "main": "api/wallpapers.js"
+  "type": "module",
+  "description": "Wallpaper API for Vercel"
 }
