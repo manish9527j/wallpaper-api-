@@ -1,5 +1,4 @@
-// Direct import instead of fs.readFile
-import data from '../data/wallpaper.json' assert { type: 'json' };
+import { wallpapersData } from '../data/wallpapers.js';
 
 export default function handler(req, res) {
   // Enable CORS
@@ -16,9 +15,9 @@ export default function handler(req, res) {
   const pathname = urlParts[0];
   const params = new URLSearchParams(urlParts[1] || '');
 
-  // Route: /api/wallpapers
-  if (pathname === '/api/wallpapers') {
-    let result = [...data.Wallpapers];
+  // GET /api/wallpapers
+  if (pathname === '/api/wallpapers' || pathname === '/api/wallpapers/') {
+    let result = [...wallpapersData.Wallpapers];
     
     // Filter by category
     const category = params.get('category');
@@ -43,44 +42,67 @@ export default function handler(req, res) {
     res.status(200).json({
       success: true,
       total: result.length,
-      page,
-      limit,
+      page: page,
+      limit: limit,
       totalPages: Math.ceil(result.length / limit),
       wallpapers: result.slice(start, end)
     });
     return;
   }
   
-  // Route: /api/wallpapers/random
+  // GET /api/wallpapers/random
   if (pathname === '/api/wallpapers/random') {
-    const randomIndex = Math.floor(Math.random() * data.Wallpapers.length);
-    res.status(200).json(data.Wallpapers[randomIndex]);
+    const randomIndex = Math.floor(Math.random() * wallpapersData.Wallpapers.length);
+    res.status(200).json(wallpapersData.Wallpapers[randomIndex]);
     return;
   }
   
-  // Route: /api/categories
+  // GET /api/categories
   if (pathname === '/api/categories') {
-    res.status(200).json(data.Categories);
+    // Add count to each category
+    const categoriesWithCount = wallpapersData.Categories.map(cat => {
+      const count = wallpapersData.Wallpapers.filter(w => w.category === cat.name).length;
+      return { ...cat, count };
+    });
+    res.status(200).json(categoriesWithCount);
     return;
   }
   
-  // Route: /api/wallpapers/:id
+  // GET /api/stats
+  if (pathname === '/api/stats') {
+    const categoryCount = {};
+    wallpapersData.Wallpapers.forEach(w => {
+      categoryCount[w.category] = (categoryCount[w.category] || 0) + 1;
+    });
+    
+    res.status(200).json({
+      totalWallpapers: wallpapersData.Wallpapers.length,
+      totalCategories: wallpapersData.Categories.length,
+      categories: wallpapersData.Categories.map(c => ({
+        name: c.name,
+        count: categoryCount[c.name] || 0
+      }))
+    });
+    return;
+  }
+  
+  // GET /api/wallpapers/:id
   const singleMatch = pathname.match(/^\/api\/wallpapers\/(\d+)$/);
   if (singleMatch) {
     const id = parseInt(singleMatch[1]);
-    if (id >= 0 && id < data.Wallpapers.length) {
-      res.status(200).json(data.Wallpapers[id]);
+    if (id >= 0 && id < wallpapersData.Wallpapers.length) {
+      res.status(200).json(wallpapersData.Wallpapers[id]);
     } else {
-      res.status(404).json({ error: 'Wallpaper not found' });
+      res.status(404).json({ error: 'Wallpaper not found', id: id });
     }
     return;
   }
   
-  // Route: /api/wallpapers/category/:name
+  // GET /api/wallpapers/category/:name
   const categoryMatch = pathname.match(/^\/api\/wallpapers\/category\/(.+)$/);
   if (categoryMatch) {
     const categoryName = decodeURIComponent(categoryMatch[1]);
-    const filtered = data.Wallpapers.filter(w => 
+    const filtered = wallpapersData.Wallpapers.filter(w => 
       w.category.toLowerCase() === categoryName.toLowerCase()
     );
     res.status(200).json({
@@ -91,17 +113,18 @@ export default function handler(req, res) {
     return;
   }
   
-  // 404 for unknown routes
-  res.status(404).json({ 
-    error: 'Route not found',
-    availableRoutes: [
-      '/api/wallpapers',
-      '/api/wallpapers?category=Abstract',
-      '/api/wallpapers?page=1&limit=10',
-      '/api/wallpapers/random',
-      '/api/categories',
-      '/api/wallpapers/0',
-      '/api/wallpapers/category/Space'
-    ]
+  // Default route - show available endpoints
+  res.status(200).json({
+    message: 'Wallpaper API is running!',
+    endpoints: {
+      allWallpapers: '/api/wallpapers',
+      paginated: '/api/wallpapers?page=1&limit=10',
+      filterByCategory: '/api/wallpapers?category=Abstract',
+      random: '/api/wallpapers/random',
+      categories: '/api/categories',
+      stats: '/api/stats',
+      byId: '/api/wallpapers/0',
+      byCategoryName: '/api/wallpapers/category/Space'
+    }
   });
-};
+}
