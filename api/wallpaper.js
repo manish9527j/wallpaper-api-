@@ -1,12 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+// Direct import instead of fs.readFile
+import data from '../data/wallpaper.json' assert { type: 'json' };
 
-// Load wallpaper data
-const dataPath = path.join(process.cwd(), 'data', 'wallpaper.json');
-const rawData = fs.readFileSync(dataPath, 'utf8');
-const data = JSON.parse(rawData);
-
-module.exports = (req, res) => {
+export default function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -16,7 +11,7 @@ module.exports = (req, res) => {
     return;
   }
 
-  const { method, url } = req;
+  const { url } = req;
   const urlParts = url.split('?');
   const pathname = urlParts[0];
   const params = new URLSearchParams(urlParts[1] || '');
@@ -45,7 +40,8 @@ module.exports = (req, res) => {
     const start = (page - 1) * limit;
     const end = start + limit;
     
-    res.json({
+    res.status(200).json({
+      success: true,
       total: result.length,
       page,
       limit,
@@ -58,22 +54,22 @@ module.exports = (req, res) => {
   // Route: /api/wallpapers/random
   if (pathname === '/api/wallpapers/random') {
     const randomIndex = Math.floor(Math.random() * data.Wallpapers.length);
-    res.json(data.Wallpapers[randomIndex]);
+    res.status(200).json(data.Wallpapers[randomIndex]);
     return;
   }
   
   // Route: /api/categories
   if (pathname === '/api/categories') {
-    res.json(data.Categories);
+    res.status(200).json(data.Categories);
     return;
   }
   
-  // Route: /api/wallpapers/:id (example: /api/wallpapers/0)
+  // Route: /api/wallpapers/:id
   const singleMatch = pathname.match(/^\/api\/wallpapers\/(\d+)$/);
   if (singleMatch) {
     const id = parseInt(singleMatch[1]);
     if (id >= 0 && id < data.Wallpapers.length) {
-      res.json(data.Wallpapers[id]);
+      res.status(200).json(data.Wallpapers[id]);
     } else {
       res.status(404).json({ error: 'Wallpaper not found' });
     }
@@ -87,7 +83,7 @@ module.exports = (req, res) => {
     const filtered = data.Wallpapers.filter(w => 
       w.category.toLowerCase() === categoryName.toLowerCase()
     );
-    res.json({
+    res.status(200).json({
       category: categoryName,
       count: filtered.length,
       wallpapers: filtered
@@ -96,5 +92,16 @@ module.exports = (req, res) => {
   }
   
   // 404 for unknown routes
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ 
+    error: 'Route not found',
+    availableRoutes: [
+      '/api/wallpapers',
+      '/api/wallpapers?category=Abstract',
+      '/api/wallpapers?page=1&limit=10',
+      '/api/wallpapers/random',
+      '/api/categories',
+      '/api/wallpapers/0',
+      '/api/wallpapers/category/Space'
+    ]
+  });
 };
